@@ -1,0 +1,16 @@
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^inicio/?$ index.php?route=inicio [QSA,L]
+RewriteRule ^acceso/?$ index.php?route=acceso [QSA,L]
+RewriteRule ^registro/estudiante/?$ index.php?route=registro/estudiante [QSA,L]
+RewriteRule ^login/estudiante/?$ index.php?route=login/estudiante [QSA,L]
+RewriteRule ^login/docente/?$ index.php?route=login/docente [QSA,L]
+RewriteRule ^docente/panel/?$ index.php?route=docente/panel [QSA,L]
+RewriteRule ^salir/?$ index.php?route=salir [QSA,L]
+RewriteRule ^nivel/([0-9]+)/?$ index.php?route=nivel/$1 [QSA,L]
+RewriteRule ^$ index.php [QSA,L]
+RewriteRule . index.php [QSA,L]

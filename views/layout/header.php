@@ -29,7 +29,7 @@ $isTeacher = is_teacher_authenticated();
         <div class="topbar__brand">
             <span class="topbar__logo">IQ</span>
             <div>
-                <h1 class="topbar__title">InglesCentral Quest</h1>
+                <h1 class="topbar__title">NeoEnglish</h1>
                 <p class="topbar__subtitle">Tu aventura bilingue para grado 11</p>
             </div>
         </div>

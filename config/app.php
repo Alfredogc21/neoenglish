@@ -7,7 +7,7 @@ declare(strict_types=1);
 |--------------------------------------------------------------------------
 */
 
-const APP_NAME = 'InglesCentral Quest';
+const APP_NAME = 'NeoEnglish';
 
 $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
 $basePath = trim($scriptDirectory, '/');

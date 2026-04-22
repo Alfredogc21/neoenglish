@@ -1008,6 +1008,13 @@ body.app-shell {
     font-family: 'Changa', sans-serif;
 }
 
+.question-card__subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--color-ink-soft);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
 .question-card__body {
     margin-top: 0.75rem;
     display: grid;
@@ -1200,6 +1207,155 @@ body.app-shell {
     border-color: var(--color-brand-cyan);
     background: #ebffff;
     box-shadow: 0 9px 16px rgba(10, 189, 198, 0.16);
+}
+
+/* Input de texto estilo Duolingo (tipo 3) */
+.question-card__text-input {
+    display: flex;
+    flex-direction: column;
+    gap: 0.48rem;
+}
+
+.question-text-input {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-ink);
+    background: var(--color-surface);
+    border: none;
+    border-bottom: 3px solid #d0dbf0;
+    border-radius: 6px 6px 0 0;
+    padding: 1rem 1.1rem 0.9rem;
+    outline: none;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: inset 0 -2px 0 #eef2fa;
+}
+
+.question-text-input::placeholder {
+    color: #b0bedd;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.question-text-input:focus {
+    border-bottom-color: var(--color-brand-cyan);
+    background: #f7feff;
+    box-shadow: inset 0 -3px 0 #b8e8f5;
+}
+
+.question-text-input--correct {
+    border-bottom-color: var(--color-success);
+    background: #e8faef;
+    box-shadow: inset 0 -3px 0 #9becc3;
+}
+
+.question-text-input--error {
+    border-bottom-color: var(--color-danger);
+    background: #fff1f4;
+    box-shadow: inset 0 -3px 0 #ffc4ce;
+}
+
+.question-text-input__hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-ink-soft);
+    font-weight: 600;
+    padding-left: 0.15rem;
+}
+
+/* Construir oracion - tipo 4 */
+.question-card__build {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.dropzone-container {
+    min-height: 56px;
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    border: 2px dashed #c8d8f0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dropzone-container:has(.word-btn) {
+    border-style: solid;
+    border-color: var(--color-brand-cyan);
+    background: #f0fbff;
+}
+
+.dropzone-container:empty::before {
+    content: '';
+}
+
+.dropzone-placeholder {
+    color: #b0c0dc;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-style: italic;
+}
+
+.wordbank-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.48rem;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(145deg, #f6f9ff, #f0f4fb);
+    border-radius: var(--radius-sm);
+    border: 1px solid #e4ecf8;
+}
+
+.word-btn {
+    border-radius: 999px;
+    background: linear-gradient(145deg, #ffffff, #f0f4fb);
+    border: 2px solid #d0dcf0;
+    color: var(--color-ink);
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    padding: 0.42rem 0.85rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 3px 0 #c8d8ec;
+}
+
+.word-btn:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-brand-cyan);
+    background: #f0fbff;
+    box-shadow: 0 5px 0 #b8d8f0;
+}
+
+.word-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 0 #c8d8ec;
+}
+
+.word-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.word-btn--placed {
+    background: linear-gradient(145deg, #dff6ff, #e8f8ff);
+    border-color: var(--color-brand-cyan);
+    color: #0f4c75;
+    box-shadow: 0 3px 0 #b8d8f0;
+}
+
+.word-btn--placed:hover {
+    background: #fff1f4;
+    border-color: var(--color-danger);
+    box-shadow: 0 5px 0 #ffc4ce;
 }
 
 .quiz__actions {

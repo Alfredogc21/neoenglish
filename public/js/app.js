@@ -82,9 +82,25 @@ function setupQuizStepper() {
             return;
         }
 
-        if (!hasSelection(currentCard)) {
-            setNotice(elements.noticeElement, 'Selecciona una opcion para continuar.');
-            return;
+        const questionType = parseInt(currentCard.dataset.questionType ?? '1', 10);
+        const isTextQuestion = questionType === 3;
+        const isBuildQuestion = questionType === 4;
+
+        if (isTextQuestion) {
+            if (!hasTextAnswer(currentCard)) {
+                setNotice(elements.noticeElement, 'Escribe tu respuesta antes de comprobar.');
+                return;
+            }
+        } else if (isBuildQuestion) {
+            if (!hasBuildAnswer(currentCard)) {
+                setNotice(elements.noticeElement, 'Construye la oracion antes de comprobar.');
+                return;
+            }
+        } else {
+            if (!hasSelection(currentCard)) {
+                setNotice(elements.noticeElement, 'Selecciona una opcion para continuar.');
+                return;
+            }
         }
 
         evaluateCurrentAnswer(currentCard, quizState, elements.cards);
@@ -120,6 +136,93 @@ function setupQuizStepper() {
                 setQuestionFeedbackNeutral(panel, quizState);
             }
         });
+    });
+
+    document.querySelectorAll('input[type="text"]').forEach((textInput) => {
+        textInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const card = textInput.closest('[data-question-card]');
+            if (!(card instanceof HTMLElement)) {
+                return;
+            }
+
+            if (quizState.awaitingAdvance) {
+                if (isReadyToSubmit(quizState, elements.cards.length)) {
+                    return;
+                }
+
+                if (moveToNextQueueItem(quizState)) {
+                    refreshQuizUI(elements, quizState);
+                }
+
+                return;
+            }
+
+            if (!hasTextAnswer(card)) {
+                setNotice(elements.noticeElement, 'Escribe tu respuesta antes de comprobar.');
+                return;
+            }
+
+            evaluateCurrentAnswer(card, quizState, elements.cards);
+            quizState.awaitingAdvance = true;
+            refreshQuizUI(elements, quizState, true);
+            clearNotice(elements.noticeElement);
+        });
+    });
+
+    quizContainer.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+            return;
+        }
+
+        const wordBtn = target.closest('[data-word]');
+        if (!(wordBtn instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        const card = wordBtn.closest('[data-question-card]');
+        if (!(card instanceof HTMLElement)) {
+            return;
+        }
+
+        if (quizState.awaitingAdvance) {
+            return;
+        }
+
+        const dropzone = card.querySelector('[data-dropzone]');
+        const wordbank = card.querySelector('[data-wordbank]');
+        if (!(dropzone instanceof HTMLElement) || !(wordbank instanceof HTMLElement)) {
+            return;
+        }
+
+        const isInDropzone = wordBtn.closest('[data-dropzone]') instanceof HTMLElement;
+
+        // Mover el mismo boton entre banco y dropzone (appendChild quita el nodo del padre).
+        // Asi no queda una copia deshabilitada en el banco ni se crean clones al volver.
+        if (isInDropzone) {
+            wordBtn.classList.remove('word-btn--placed');
+            wordBtn.disabled = false;
+            wordbank.appendChild(wordBtn);
+        } else {
+            wordBtn.classList.add('word-btn--placed');
+            wordBtn.disabled = false;
+            dropzone.appendChild(wordBtn);
+        }
+
+        syncBuildAnswerInput(card);
+
+        const panel = card.querySelector('[data-question-feedback]');
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedbackNeutral(panel, quizState);
+        }
+
+        clearNotice(elements.noticeElement);
     });
 
     elements.form?.addEventListener('submit', (event) => {
@@ -191,6 +294,8 @@ function collectQuizElements(quizContainer) {
         progressCurrent: quizContainer.querySelector('[data-progress-current]'),
         noticeElement: quizContainer.querySelector('[data-quiz-notice]'),
         radioInputs: Array.from(quizContainer.querySelectorAll('input[type="radio"]')),
+        textInputs: Array.from(quizContainer.querySelectorAll('input[type="text"]')),
+        wordbankButtons: Array.from(quizContainer.querySelectorAll('[data-word]')),
         nextLevelRoute: (quizContainer.dataset.nextLevelRoute ?? '').trim(),
         autoNextInput: quizContainer.querySelector('[data-auto-next-input]'),
         launchOverlay: quizContainer.querySelector('[data-launch-overlay]'),
@@ -492,6 +597,106 @@ function hasSelection(card) {
     return card.querySelector('input[type="radio"]:checked') instanceof HTMLInputElement;
 }
 
+function hasTextAnswer(card) {
+    if (!(card instanceof HTMLElement)) {
+        return false;
+    }
+
+    const textInput = card.querySelector('input[type="text"]');
+    if (!(textInput instanceof HTMLInputElement)) {
+        return false;
+    }
+
+    return textInput.value.trim() !== '';
+}
+
+function getTextAnswer(card) {
+    if (!(card instanceof HTMLElement)) {
+        return '';
+    }
+
+    const textInput = card.querySelector('input[type="text"]');
+    if (!(textInput instanceof HTMLInputElement)) {
+        return '';
+    }
+
+    return textInput.value.trim();
+}
+
+function hasBuildAnswer(card) {
+    if (!(card instanceof HTMLElement)) {
+        return false;
+    }
+
+    const dropzone = card.querySelector('[data-dropzone]');
+    if (!(dropzone instanceof HTMLElement)) {
+        return false;
+    }
+
+    return dropzone.querySelectorAll('[data-word]').length > 0;
+}
+
+function getBuildAnswer(card) {
+    if (!(card instanceof HTMLElement)) {
+        return '';
+    }
+
+    const dropzone = card.querySelector('[data-dropzone]');
+    if (!(dropzone instanceof HTMLElement)) {
+        return '';
+    }
+
+    const words = Array.from(dropzone.querySelectorAll('[data-word]'));
+    return words.map((w) => w.textContent?.trim() ?? '').join(' ');
+}
+
+function clearBuildInputs(card) {
+    if (!(card instanceof HTMLElement)) {
+        return;
+    }
+
+    const dropzone = card.querySelector('[data-dropzone]');
+    if (dropzone instanceof HTMLElement) {
+        dropzone.innerHTML =
+            '<span class="dropzone-placeholder" data-dropzone-placeholder>Aqui aparecera tu oracion...</span>';
+    }
+
+    const wordbank = card.querySelector('[data-wordbank]');
+    if (!(wordbank instanceof HTMLElement)) {
+        return;
+    }
+
+    const allWordButtons = Array.from(wordbank.querySelectorAll('[data-word]'));
+    allWordButtons.forEach((btn) => {
+        if (btn instanceof HTMLElement) {
+            btn.disabled = false;
+        }
+    });
+
+    syncBuildAnswerInput(card);
+}
+
+function syncBuildAnswerInput(card) {
+    if (!(card instanceof HTMLElement)) {
+        return;
+    }
+
+    const dropzone = card.querySelector('[data-dropzone]');
+    const answerInput = card.querySelector('[data-build-answer]');
+    if (!(dropzone instanceof HTMLElement) || !(answerInput instanceof HTMLInputElement)) {
+        return;
+    }
+
+    const words = Array.from(dropzone.querySelectorAll('[data-word]'));
+    const builtSentence = words.map((w) => w.textContent?.trim() ?? '').join(' ');
+    answerInput.value = builtSentence;
+
+    const placeholder = dropzone.querySelector('[data-dropzone-placeholder]');
+    if (placeholder instanceof HTMLElement) {
+        placeholder.hidden = words.length > 0;
+    }
+}
+
 function disableCardInputs(card, shouldDisable) {
     if (!(card instanceof HTMLElement)) {
         return;
@@ -503,6 +708,11 @@ function disableCardInputs(card, shouldDisable) {
             input.disabled = shouldDisable;
         }
     });
+
+    const textInput = card.querySelector('input[type="text"]');
+    if (textInput instanceof HTMLInputElement) {
+        textInput.disabled = shouldDisable;
+    }
 }
 
 function setNotice(noticeElement, message) {
@@ -523,12 +733,93 @@ function evaluateCurrentAnswer(card, quizState, cards) {
     }
 
     const panel = card.querySelector('[data-question-feedback]');
+    const questionType = parseInt(card.dataset.questionType ?? '1', 10);
+    const isTextQuestion = questionType === 3;
+    const isBuildQuestion = questionType === 4;
+
+    if (isTextQuestion) {
+        return evaluateTextAnswer(card, quizState, cards, panel);
+    }
+
+    if (isBuildQuestion) {
+        return evaluateBuildAnswer(card, quizState, cards, panel);
+    }
+
+    return evaluateRadioAnswer(card, quizState, cards, panel);
+}
+
+function normalizeFreeTextAnswer(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function evaluateTextAnswer(card, quizState, cards, panel) {
+    const textInput = card.querySelector('input[type="text"]');
+    if (!(textInput instanceof HTMLInputElement)) {
+        return false;
+    }
+
+    const typedAnswer = textInput.value.trim();
+    if (typedAnswer === '') {
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedbackNeutral(panel, quizState);
+        }
+        return false;
+    }
+
+    const correctRaw = textInput.dataset.correctText ?? '';
+    const isCorrect = normalizeFreeTextAnswer(typedAnswer) === normalizeFreeTextAnswer(correctRaw);
+    const feedback = textInput.dataset.optionFeedback ?? '';
+    const questionKey = getQuestionKey(card);
+    const questionIndex = Array.isArray(cards) ? cards.indexOf(card) : -1;
+
+    if (isCorrect) {
+        trackCorrectSelection(quizState, questionKey);
+        removeQueuedRetries(quizState, questionIndex);
+
+        textInput.classList.remove('question-text-input--error');
+        textInput.classList.add('question-text-input--correct');
+
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedback(
+                panel,
+                'success',
+                buildSuccessFeedbackTitle(quizState),
+                feedback || 'Correcto! Tu respuesta es correcta.'
+            );
+        }
+
+        return true;
+    }
+
+    trackWrongSelection(quizState, questionKey);
+    enqueueQuestionRetry(quizState, questionIndex);
+    const failedAttempts = getFailedAttempts(quizState, questionKey);
+    const tip = card.dataset.questionTip ?? '';
+
+    textInput.classList.remove('question-text-input--correct');
+    textInput.classList.add('question-text-input--error');
+
+    if (panel instanceof HTMLElement) {
+        setQuestionFeedback(
+            panel,
+            'error',
+            buildErrorFeedbackTitle(failedAttempts),
+            feedback || tip || 'Incorrecto. Intenta de nuevo.'
+        );
+    }
+
+    return false;
+}
+
+function evaluateRadioAnswer(card, quizState, cards, panel) {
     const selectedInput = card.querySelector('input[type="radio"]:checked');
     if (!(selectedInput instanceof HTMLInputElement)) {
         if (panel instanceof HTMLElement) {
             setQuestionFeedbackNeutral(panel, quizState);
         }
-
         return false;
     }
 
@@ -570,6 +861,70 @@ function evaluateCurrentAnswer(card, quizState, cards) {
                 selectedText,
                 questionPrompt,
             })
+        );
+    }
+
+    return false;
+}
+
+function evaluateBuildAnswer(card, quizState, cards, panel) {
+    if (!(card instanceof HTMLElement)) {
+        return false;
+    }
+
+    const dropzone = card.querySelector('[data-dropzone]');
+    const answerInput = card.querySelector('[data-build-answer]');
+    if (!(dropzone instanceof HTMLElement)) {
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedbackNeutral(panel, quizState);
+        }
+        return false;
+    }
+
+    const words = Array.from(dropzone.querySelectorAll('[data-word]'));
+    if (words.length === 0) {
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedbackNeutral(panel, quizState);
+        }
+        return false;
+    }
+
+    const builtSentence = words.map((w) => w.textContent?.trim() ?? '').join(' ');
+    const correctSentence = answerInput instanceof HTMLInputElement ? (answerInput.dataset.correctSentence ?? '') : '';
+    const isCorrect =
+        builtSentence !== '' &&
+        normalizeFreeTextAnswer(builtSentence) === normalizeFreeTextAnswer(correctSentence);
+    const feedback = answerInput instanceof HTMLInputElement ? (answerInput.dataset.optionFeedback ?? '') : '';
+    const questionKey = getQuestionKey(card);
+    const questionIndex = Array.isArray(cards) ? cards.indexOf(card) : -1;
+
+    if (isCorrect) {
+        trackCorrectSelection(quizState, questionKey);
+        removeQueuedRetries(quizState, questionIndex);
+
+        if (panel instanceof HTMLElement) {
+            setQuestionFeedback(
+                panel,
+                'success',
+                buildSuccessFeedbackTitle(quizState),
+                feedback || `"${builtSentence}" es la oracion correcta. Excelente!`
+            );
+        }
+
+        return true;
+    }
+
+    trackWrongSelection(quizState, questionKey);
+    enqueueQuestionRetry(quizState, questionIndex);
+    const failedAttempts = getFailedAttempts(quizState, questionKey);
+    const tip = card.dataset.questionTip ?? '';
+
+    if (panel instanceof HTMLElement) {
+        setQuestionFeedback(
+            panel,
+            'error',
+            buildErrorFeedbackTitle(failedAttempts),
+            feedback || tip || ` "${builtSentence}" no es correcta. Intenta construir la oracion de nuevo.`
         );
     }
 
@@ -773,15 +1128,27 @@ function normalizeHintText(value) {
 }
 
 function setQuestionFeedbackNeutral(panel, quizState) {
+    const card = panel.closest('[data-question-card]');
+    const questionType = card instanceof HTMLElement ? parseInt(card.dataset.questionType ?? '1', 10) : 1;
+    const isTextQuestion = questionType === 3;
     const hasCombo = quizState.currentStreak > 1;
-    const neutralText = hasCombo
+
+    let neutralTitle = 'Selecciona una opcion';
+    let neutralText = hasCombo
         ? `Racha activa x${quizState.currentStreak}. Elige y pulsa Comprobar para seguir sumando.`
         : 'Elige una opcion y pulsa Comprobar para recibir retroalimentacion.';
+
+    if (isTextQuestion) {
+        neutralTitle = 'Escribe tu respuesta';
+        neutralText = hasCombo
+            ? `Racha activa x${quizState.currentStreak}. Escribe y presiona Enter para seguir sumando.`
+            : 'Escribe la palabra y presiona Enter o haz clic en Comprobar.';
+    }
 
     setQuestionFeedback(
         panel,
         'neutral',
-        'Selecciona una opcion',
+        neutralTitle,
         neutralText
     );
 }

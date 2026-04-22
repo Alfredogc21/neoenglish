@@ -106,6 +106,7 @@ CREATE TABLE opciones_pregunta (
     pregunta_id INT NOT NULL,
     texto_opcion VARCHAR(250) NOT NULL,
     es_correcta BOOLEAN NOT NULL DEFAULT FALSE,
+    retroalimentacion VARCHAR(500) NULL,
     CONSTRAINT fk_opciones_pregunta
         FOREIGN KEY (pregunta_id) REFERENCES preguntas(pregunta_id)
         ON DELETE CASCADE
@@ -186,9 +187,11 @@ CREATE TABLE respuestas_intento_estudiante (
 6) DATOS SEMILLA BASE
 ============================================================
 
-INSERT INTO tipos_pregunta (nombre_tipo_pregunta) VALUES
-('seleccion_multiple_respuesta_unica'),
-('completar_oracion');
+INSERT INTO tipos_pregunta (tipo_pregunta_id, nombre_tipo_pregunta) VALUES
+(1, 'seleccion_multiple_respuesta_unica'),
+(2, 'completar_oracion'),
+(3, 'escribir_respuesta'),
+(4, 'construir_oracion');
 
 INSERT INTO niveles (codigo_nivel, nombre_nivel, banda_cefr, descripcion_nivel, meta_xp) VALUES
 ('L1_A2', 'A2 Starter: School Life', 'A2', 'Vocabulario cotidiano, rutinas y contexto escolar.', 30),
@@ -216,74 +219,93 @@ INSERT INTO lecciones (nivel_id, titulo_leccion, objetivo_leccion, orden_secuenc
 (2, 'Tell me your day', 'Narrar acciones pasadas usando conectores.', 1),
 (3, 'Future and opinion', 'Expresar opiniones y planes de manera clara.', 1);
 
-INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
-(1, 1, 'Choose the correct word: I go to ____ at 7:00 a.m.', 'Piensa en el lugar principal para estudiar.', 1.00, 1),
-(1, 1, 'Select the best translation: Ella estudia ingles.', 'Con she/he en presente simple el verbo lleva -s.', 1.00, 2),
-(1, 1, 'Complete: My favorite subject is ____ because it is interesting.', 'Debe ser una materia escolar.', 1.10, 3),
-(1, 1, 'Pick the best classroom sentence:', 'Busca coherencia entre sujeto y verbo.', 1.15, 4),
-(2, 1, 'Choose the correct past form: Yesterday I ____ football.', 'Con yesterday normalmente va pasado simple.', 1.00, 1),
-(2, 1, 'Select the connector: I finished homework, ____ I watched a movie.', 'Necesitas secuencia temporal.', 1.05, 2),
-(2, 1, 'Pick the correct sentence:', 'Verifica uso de visited en pasado.', 1.10, 3),
-(2, 1, 'Choose the best option: She ____ not go to class because she was sick.', 'En negativo pasado simple se usa did not.', 1.15, 4),
-(3, 1, 'Choose the best expression: In my opinion, social media ____ useful for learning.', 'Concordancia sujeto y verbo.', 1.00, 1),
-(3, 1, 'Complete: If I have enough time, I ____ join the English club.', 'Primera condicional: will + verbo base.', 1.10, 2),
-(3, 1, 'Select the sentence with correct structure:', 'Estructura correcta con think that + clause.', 1.12, 3),
-(3, 1, 'Choose the best response: What are you going to do after graduation?', 'Para planes futuros usa going to.', 1.18, 4),
-(3, 1, 'Pick the connector that shows contrast: I like English, ____ grammar is difficult for me.', 'Se requiere contraste.', 1.15, 5);
+-- Nivel 1 / Leccion 1: 10 retos (mezcla equilibrada de tipos 1 a 4). Enunciados en espanol; opciones en ingles.
 
-INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta) VALUES
-(1, 'school', TRUE),
-(1, 'hospital', FALSE),
-(1, 'market', FALSE),
-(1, 'airport', FALSE),
-(2, 'She studies English.', TRUE),
-(2, 'She study English.', FALSE),
-(2, 'He studies English.', FALSE),
-(2, 'She studies spanish.', FALSE),
-(3, 'math', TRUE),
-(3, 'run', FALSE),
-(3, 'door', FALSE),
-(3, 'happy', FALSE),
-(4, 'We have English class on Monday.', TRUE),
-(4, 'We has English class on Monday.', FALSE),
-(4, 'We having English class on Monday.', FALSE),
-(4, 'We are have English class on Monday.', FALSE),
-(5, 'play', FALSE),
-(5, 'played', TRUE),
-(5, 'plays', FALSE),
-(5, 'playing', FALSE),
-(6, 'then', TRUE),
-(6, 'because', FALSE),
-(6, 'but', FALSE),
-(6, 'if', FALSE),
-(7, 'Last weekend we visit my grandmother.', FALSE),
-(7, 'Last weekend we visited my grandmother.', TRUE),
-(7, 'Last weekend we visiting my grandmother.', FALSE),
-(7, 'Last weekend we visits my grandmother.', FALSE),
-(8, 'did', TRUE),
-(8, 'do', FALSE),
-(8, 'does', FALSE),
-(8, 'is', FALSE),
-(9, 'is', TRUE),
-(9, 'are', FALSE),
-(9, 'be', FALSE),
-(9, 'am', FALSE),
-(10, 'will', TRUE),
-(10, 'am', FALSE),
-(10, 'did', FALSE),
-(10, 'has', FALSE),
-(11, 'I think that studying every day helps a lot.', TRUE),
-(11, 'I think studying every day help a lot.', FALSE),
-(11, 'I thinks that studying every day helps a lot.', FALSE),
-(11, 'I think that study every day helps a lot.', FALSE),
-(12, 'I am going to study systems engineering.', TRUE),
-(12, 'I going study systems engineering.', FALSE),
-(12, 'I studied systems engineering tomorrow.', FALSE),
-(12, 'I am study systems engineering now.', FALSE),
-(13, 'but', TRUE),
-(13, 'so', FALSE),
-(13, 'because', FALSE),
-(13, 'and', FALSE);
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 1, 'Elige la palabra correcta: I go to ____ at 7:00 a.m.', 'Piensa en el lugar principal donde estudias entre semana.', 1.00, 1);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'school', TRUE, 'Correcto: school es el colegio; encaja con go to + lugar.'),
+(@pregunta_id, 'hospital', FALSE, 'Hospital es atencion medica, no tu rutina escolar diaria.'),
+(@pregunta_id, 'market', FALSE, 'Market es mercado; no describe el destino tipico a las 7:00 a.m. para estudiar.'),
+(@pregunta_id, 'airport', FALSE, 'Airport es aeropuerto; no es el lugar cotidiano de clases.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 2, 'Completa la oracion: My favorite subject is ____ because it is interesting.', 'Elige una materia escolar real, no un adjetivo suelto.', 1.00, 2);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'math', TRUE, 'Correcto: math es una materia; concuerda con subject.'),
+(@pregunta_id, 'running', FALSE, 'Running es una actividad, no el nombre de una materia aqui.'),
+(@pregunta_id, 'door', FALSE, 'Door es objeto; no completa el sentido de materia favorita.'),
+(@pregunta_id, 'happy', FALSE, 'Happy es adjetivo; necesitas un sustantivo de materia.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 3, 'Escribe en ingles la palabra que falta: I ____ my homework every evening.', 'Verbo basico en presente simple para rutina (sin -s con I).', 1.05, 3);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'do', TRUE, 'Correcto: do my homework es la colocacion natural con I.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 4, 'Construye la traduccion correcta: Ella estudia ingles.', 'Presente simple con she: el verbo lleva -s; English con mayuscula.', 1.10, 4);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'She studies English', TRUE, 'Correcto: she + studies + English (idioma con mayuscula).'),
+(@pregunta_id, 'study', FALSE, 'Distractor: falta -s y sujeto.'),
+(@pregunta_id, 'He', FALSE, 'Distractor: pronombre incorrecto para ella.'),
+(@pregunta_id, 'spanish', FALSE, 'Distractor: otro idioma; no forma la oracion.'),
+(@pregunta_id, 'studying', FALSE, 'Distractor: forma en -ing no basta sola para esta estructura.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 1, 'Elige la mejor opcion: She ____ a pencil case in her backpack.', 'She va con has en presente (tercera persona).', 1.00, 5);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'has', TRUE, 'Correcto: she has (have -> has).'),
+(@pregunta_id, 'have', FALSE, 'Have no concuerda con she en presente.'),
+(@pregunta_id, 'is', FALSE, 'Is no expresa posesion aqui.'),
+(@pregunta_id, 'are', FALSE, 'Are no concuerda con she.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 2, 'Completa: We have lunch in the ____ at 12:30.', 'Lugar dentro del colegio donde se almuerza.', 1.00, 6);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'cafeteria', TRUE, 'Correcto: cafeteria es el comedor escolar.'),
+(@pregunta_id, 'library', FALSE, 'Library es biblioteca; no el lugar tipico de almuerzo.'),
+(@pregunta_id, 'classroom', FALSE, 'Classroom es aula; menos natural para lunch.'),
+(@pregunta_id, 'gym', FALSE, 'Gym es gimnasio; no encaja con have lunch.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 3, 'Escribe en ingles: The teacher ____ the attendance every morning.', 'Verbo habitual para lista/pase de lista en presente (he/she + -s).', 1.05, 7);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'takes', TRUE, 'Correcto: take attendance es colocacion frecuente; takes con teacher.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 4, 'Construye la traduccion: Nosotros tenemos clase de ciencias los martes.', 'Orden natural en ingles: dia de la semana al final con on.', 1.10, 8);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'We have science class on Tuesdays', TRUE, 'Correcto: we have + science class + on Tuesdays.'),
+(@pregunta_id, 'Monday', FALSE, 'Distractor: otro dia.'),
+(@pregunta_id, 'Wednesday', FALSE, 'Distractor: otro dia.'),
+(@pregunta_id, 'they', FALSE, 'Distractor: pronombre incorrecto (we).'),
+(@pregunta_id, 'at', FALSE, 'Distractor: preposicion suelta; no sustituye on + dia.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 1, 'Elige: They ____ to school by bus every day.', 'They concuerda con verbo base en presente (sin -s).', 1.00, 9);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'go', TRUE, 'Correcto: they go (presente, verbo base).'),
+(@pregunta_id, 'goes', FALSE, 'Goes lleva -s para he/she/it, no para they.'),
+(@pregunta_id, 'going', FALSE, 'Going necesita verbo auxiliar aqui.'),
+(@pregunta_id, 'are', FALSE, 'Are no va con go to school de esta forma.');
+
+INSERT INTO preguntas (leccion_id, tipo_pregunta_id, enunciado_pregunta, explicacion, peso_dificultad, orden_secuencia) VALUES
+(1, 2, 'Completa: I need to ____ my notebook before the exam.', 'Verbo para repasar / revisar apuntes.', 1.00, 10);
+SET @pregunta_id = LAST_INSERT_ID();
+INSERT INTO opciones_pregunta (pregunta_id, texto_opcion, es_correcta, retroalimentacion) VALUES
+(@pregunta_id, 'review', TRUE, 'Correcto: review notebook encaja con estudiar antes del examen.'),
+(@pregunta_id, 'repeat', FALSE, 'Repeat es repetir; menos preciso que review aqui.'),
+(@pregunta_id, 'remember', FALSE, 'Remember no completa bien la idea de preparar el cuaderno.'),
+(@pregunta_id, 'return', FALSE, 'Return no expresa preparar o repasar.');
 
 ============================================================
 7) USUARIOS DEMO PARA PROBAR AUTENTICACION
@@ -300,29 +322,18 @@ INSERT INTO docentes (nombre_completo, correo, hash_contrasena) VALUES
 ============================================================
 
 INSERT INTO intentos_estudiante (estudiante_id, leccion_id, iniciado_en, finalizado_en, porcentaje_puntaje, xp_ganada) VALUES
-(1, 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY + INTERVAL 15 MINUTE, 75.00, 35),
-(1, 2, NOW() - INTERVAL 2 DAY, NOW() - INTERVAL 2 DAY + INTERVAL 18 MINUTE, 50.00, 20),
-(1, 3, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY + INTERVAL 21 MINUTE, 80.00, 45);
+(1, 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY + INTERVAL 15 MINUTE, 80.00, 40);
 
 INSERT INTO respuestas_intento_estudiante (intento_id, pregunta_id, opcion_seleccionada_id, es_correcta) VALUES
 (1, 1, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 1 AND texto_opcion = 'school' LIMIT 1), TRUE),
-(1, 2, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 2 AND texto_opcion = 'He studies English.' LIMIT 1), FALSE),
-(1, 3, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 3 AND texto_opcion = 'math' LIMIT 1), TRUE),
-(1, 4, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 4 AND texto_opcion = 'We have English class on Monday.' LIMIT 1), TRUE),
-(2, 5, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 5 AND texto_opcion = 'played' LIMIT 1), TRUE),
-(2, 6, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 6 AND texto_opcion = 'because' LIMIT 1), FALSE),
-(2, 7, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 7 AND texto_opcion = 'Last weekend we visited my grandmother.' LIMIT 1), TRUE),
-(2, 8, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 8 AND texto_opcion = 'do' LIMIT 1), FALSE),
-(3, 9, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 9 AND texto_opcion = 'is' LIMIT 1), TRUE),
-(3, 10, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 10 AND texto_opcion = 'will' LIMIT 1), TRUE),
-(3, 11, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 11 AND texto_opcion = 'I think that studying every day helps a lot.' LIMIT 1), TRUE),
-(3, 12, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 12 AND texto_opcion = 'I am study systems engineering now.' LIMIT 1), FALSE),
-(3, 13, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 13 AND texto_opcion = 'but' LIMIT 1), TRUE);
+(1, 2, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 2 AND texto_opcion = 'math' LIMIT 1), TRUE),
+(1, 3, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 3 AND texto_opcion = 'do' LIMIT 1), TRUE),
+(1, 4, (SELECT opcion_id FROM opciones_pregunta WHERE pregunta_id = 4 AND es_correcta = 1 LIMIT 1), TRUE);
 
 INSERT INTO progreso_nivel_estudiante (estudiante_id, nivel_id, desbloqueado_en, completado_en, mejor_porcentaje, xp_ganada) VALUES
-(1, 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY, 75.00, 35),
-(1, 2, NOW() - INTERVAL 2 DAY, NULL, 50.00, 20),
-(1, 3, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY, 80.00, 45);
+(1, 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY, 80.00, 40),
+(1, 2, NOW() - INTERVAL 2 DAY, NULL, 0.00, 0),
+(1, 3, NOW() - INTERVAL 1 DAY, NULL, 0.00, 0);
 
 ============================================================
 9) VERIFICACION RAPIDA DE DATOS

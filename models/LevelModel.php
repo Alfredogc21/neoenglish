@@ -18,6 +18,7 @@ class LevelModel
             'questions' => [
                 [
                     'id' => 101,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Choose the correct word: "I go to ____ at 7:00 a.m."',
                     'tip' => 'Piensa en el lugar donde estudias todos los dias.',
                     'options' => [
@@ -29,6 +30,7 @@ class LevelModel
                 ],
                 [
                     'id' => 102,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Select the best translation: "Ella estudia ingles".',
                     'tip' => 'Recuerda agregar -s al verbo con she/he en presente simple.',
                     'options' => [
@@ -40,6 +42,7 @@ class LevelModel
                 ],
                 [
                     'id' => 103,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Complete: "My favorite subject is ____ because it is interesting."',
                     'tip' => 'Debe ser una materia del colegio.',
                     'options' => [
@@ -63,6 +66,7 @@ class LevelModel
             'questions' => [
                 [
                     'id' => 201,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Choose the correct past form: "Yesterday I ____ football with my friends."',
                     'tip' => 'Cuando dices yesterday, normalmente usas pasado simple.',
                     'options' => [
@@ -74,6 +78,7 @@ class LevelModel
                 ],
                 [
                     'id' => 202,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Select the connector to complete: "I finished homework, ____ I watched a movie."',
                     'tip' => 'La segunda accion ocurre despues de la primera.',
                     'options' => [
@@ -97,6 +102,7 @@ class LevelModel
             'questions' => [
                 [
                     'id' => 301,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Choose the best expression: "In my opinion, social media ____ useful for learning."',
                     'tip' => 'Social media se considera singular en este contexto.',
                     'options' => [
@@ -108,6 +114,7 @@ class LevelModel
                 ],
                 [
                     'id' => 302,
+                    'tipo_pregunta_id' => 1,
                     'prompt' => 'Complete: "If I have enough time, I ____ join the English club."',
                     'tip' => 'Primera condicional: If + presente, ... will + verbo.',
                     'options' => [
@@ -152,7 +159,12 @@ class LevelModel
             return $level;
         }
 
-        return $this->fallbackLevels[$levelId] ?? null;
+        $fallback = $this->fallbackLevels[$levelId] ?? null;
+        if (!is_array($fallback)) {
+            return null;
+        }
+
+        return $this->prepareFallbackLevelForPlay($fallback);
     }
 
     public function evaluateAnswers(array $level, array $submittedAnswers): array
@@ -168,31 +180,57 @@ class LevelModel
 
         foreach ($questions as $question) {
             $questionId = (int) ($question['id'] ?? 0);
+            $questionType = (int) ($question['tipo_pregunta_id'] ?? 1);
             $questionPrompt = (string) ($question['prompt'] ?? '');
             $questionTip = (string) ($question['tip'] ?? '');
             $options = $question['options'] ?? [];
             $options = is_array($options) ? $options : [];
+            $isTextQuestion = $questionType === 3;
+            $isBuildQuestion = $questionType === 4;
 
             $submittedRaw = $submittedAnswers[(string) $questionId] ?? null;
             $selectedOptionId = null;
-            if (is_string($submittedRaw) || is_int($submittedRaw)) {
-                $filtered = filter_var((string) $submittedRaw, FILTER_VALIDATE_INT, [
-                    'options' => ['min_range' => 1],
-                ]);
-                if ($filtered !== false) {
-                    $selectedOptionId = (int) $filtered;
-                }
-            }
-
-            $selectedOption = $selectedOptionId !== null
-                ? $this->findOptionById($options, $selectedOptionId)
-                : null;
+            $selectedText = '';
+            $selectedOption = null;
+            $selectedFeedback = '';
             $correctOption = $this->findCorrectOption($options);
             $correctOptionId = is_array($correctOption) ? (int) ($correctOption['id'] ?? 0) : null;
 
-            $isCorrect = $selectedOptionId !== null
-                && $correctOptionId !== null
-                && $selectedOptionId === $correctOptionId;
+            if ($isBuildQuestion) {
+                $builtSentence = is_string($submittedRaw) ? trim($submittedRaw) : '';
+                $correctSentence = is_array($correctOption) ? trim((string) ($correctOption['text'] ?? '')) : '';
+                $selectedText = $builtSentence;
+                $selectedFeedback = is_array($correctOption) ? (string) ($correctOption['retroalimentacion'] ?? '') : '';
+                $isCorrect = $builtSentence !== ''
+                    && $this->normalizeComparableText($builtSentence) === $this->normalizeComparableText($correctSentence);
+            } elseif ($isTextQuestion) {
+                $selectedText = is_string($submittedRaw) ? trim($submittedRaw) : '';
+                $correctText = is_array($correctOption) ? trim((string) ($correctOption['text'] ?? '')) : '';
+                $isCorrect = $selectedText !== ''
+                    && $this->normalizeComparableText($selectedText) === $this->normalizeComparableText($correctText);
+                $selectedOptionId = $correctOptionId;
+                $selectedFeedback = is_array($correctOption) ? (string) ($correctOption['retroalimentacion'] ?? '') : '';
+            } else {
+                if (is_string($submittedRaw) || is_int($submittedRaw)) {
+                    $filtered = filter_var((string) $submittedRaw, FILTER_VALIDATE_INT, [
+                        'options' => ['min_range' => 1],
+                    ]);
+                    if ($filtered !== false) {
+                        $selectedOptionId = (int) $filtered;
+                    }
+                }
+
+                $selectedOption = $selectedOptionId !== null
+                    ? $this->findOptionById($options, $selectedOptionId)
+                    : null;
+
+                $isCorrect = $selectedOptionId !== null
+                    && $correctOptionId !== null
+                    && $selectedOptionId === $correctOptionId;
+
+                $selectedFeedback = is_array($selectedOption) ? (string) ($selectedOption['retroalimentacion'] ?? '') : '';
+                $selectedText = is_array($selectedOption) ? (string) ($selectedOption['text'] ?? '') : '';
+            }
 
             if ($isCorrect) {
                 $correctAnswers++;
@@ -201,10 +239,11 @@ class LevelModel
             $details[] = [
                 'question_id' => $questionId,
                 'prompt' => $questionPrompt,
-                'selected_answer' => is_array($selectedOption) ? (string) ($selectedOption['text'] ?? '') : '',
+                'selected_answer' => $selectedText,
                 'expected_answer' => is_array($correctOption) ? (string) ($correctOption['text'] ?? '') : '',
                 'is_correct' => $isCorrect,
                 'tip' => $questionTip,
+                'selected_feedback' => $selectedFeedback,
             ];
 
             $attemptAnswers[] = [
@@ -341,6 +380,7 @@ class LevelModel
                 $questionsQuery = $this->pdo->prepare(
                     'SELECT
                                 p.pregunta_id AS id,
+                                p.tipo_pregunta_id AS tipo_pregunta_id,
                                 p.enunciado_pregunta AS prompt,
                                 COALESCE(p.explicacion, "Revisa la estructura de la frase y vuelve a intentarlo.") AS tip
                             FROM preguntas p
@@ -350,15 +390,40 @@ class LevelModel
                 $questionsQuery->execute(['lesson_id' => $lessonId]);
                 $questionRows = $questionsQuery->fetchAll();
 
-                $optionsQuery = $this->pdo->prepare(
+                // UNA sola query para TODAS las opciones de la leccion (elimina N+1)
+                $allOptionsQuery = $this->pdo->prepare(
                     'SELECT
-                                opcion_id AS id,
-                                texto_opcion AS text,
-                                es_correcta AS is_correct
-                            FROM opciones_pregunta
-                            WHERE pregunta_id = :question_id
-                            ORDER BY opcion_id'
+                        opcion_id AS id,
+                        pregunta_id,
+                        texto_opcion AS text,
+                        es_correcta AS is_correct,
+                        COALESCE(retroalimentacion, "") AS retroalimentacion
+                    FROM opciones_pregunta
+                    WHERE pregunta_id IN (
+                        SELECT pregunta_id FROM preguntas WHERE leccion_id = :lesson_id
+                    )
+                    ORDER BY pregunta_id, opcion_id'
                 );
+                $allOptionsQuery->execute(['lesson_id' => $lessonId]);
+                $allOptionRows = $allOptionsQuery->fetchAll();
+
+                // Agrupar opciones por pregunta_id
+                $optionsByQuestion = [];
+                foreach ($allOptionRows as $optionRow) {
+                    if (!is_array($optionRow)) {
+                        continue;
+                    }
+                    $qId = (int) ($optionRow['pregunta_id'] ?? 0);
+                    if (!isset($optionsByQuestion[$qId])) {
+                        $optionsByQuestion[$qId] = [];
+                    }
+                    $optionsByQuestion[$qId][] = [
+                        'id' => (int) ($optionRow['id'] ?? 0),
+                        'text' => (string) ($optionRow['text'] ?? ''),
+                        'is_correct' => (bool) ($optionRow['is_correct'] ?? false),
+                        'retroalimentacion' => (string) ($optionRow['retroalimentacion'] ?? ''),
+                    ];
+                }
 
                 foreach ($questionRows as $questionRow) {
                     if (!is_array($questionRow)) {
@@ -366,28 +431,32 @@ class LevelModel
                     }
 
                     $questionId = (int) ($questionRow['id'] ?? 0);
-                    $optionsQuery->execute(['question_id' => $questionId]);
-                    $optionRows = $optionsQuery->fetchAll();
+                    $questionType = (int) ($questionRow['tipo_pregunta_id'] ?? 1);
+                    $options = $optionsByQuestion[$questionId] ?? [];
 
-                    $options = [];
-                    foreach ($optionRows as $optionRow) {
-                        if (!is_array($optionRow)) {
-                            continue;
-                        }
+                    if ($questionType === 4) {
+                        $built = $this->buildTypeFourWordbank($options);
+                        $questions[] = [
+                            'id' => $questionId,
+                            'tipo_pregunta_id' => $questionType,
+                            'prompt' => (string) ($questionRow['prompt'] ?? ''),
+                            'tip' => (string) ($questionRow['tip'] ?? ''),
+                            'options' => $options,
+                            'wordbank' => $built['wordbank'],
+                            'correct_sentence' => $built['correct_sentence'],
+                        ];
+                    } else {
+                        $shuffledOptions = $options;
+                        shuffle($shuffledOptions);
 
-                        $options[] = [
-                            'id' => (int) ($optionRow['id'] ?? 0),
-                            'text' => (string) ($optionRow['text'] ?? ''),
-                            'is_correct' => (bool) ($optionRow['is_correct'] ?? false),
+                        $questions[] = [
+                            'id' => $questionId,
+                            'tipo_pregunta_id' => $questionType,
+                            'prompt' => (string) ($questionRow['prompt'] ?? ''),
+                            'tip' => (string) ($questionRow['tip'] ?? ''),
+                            'options' => $shuffledOptions,
                         ];
                     }
-
-                    $questions[] = [
-                        'id' => $questionId,
-                        'prompt' => (string) ($questionRow['prompt'] ?? ''),
-                        'tip' => (string) ($questionRow['tip'] ?? ''),
-                        'options' => $options,
-                    ];
                 }
             }
 
@@ -457,5 +526,98 @@ class LevelModel
         }
 
         return null;
+    }
+
+    private function normalizeComparableText(string $value): string
+    {
+        $collapsed = preg_replace('/\s+/u', ' ', trim($value)) ?? trim($value);
+
+        return mb_strtolower($collapsed, 'UTF-8');
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $options
+     * @return array{wordbank: array<int, string>, correct_sentence: string}
+     */
+    private function buildTypeFourWordbank(array $options): array
+    {
+        $correctOption = null;
+        $distractorTexts = [];
+        foreach ($options as $opt) {
+            if (!empty($opt['is_correct'])) {
+                $correctOption = $opt;
+            } else {
+                $distractorTexts[] = trim((string) ($opt['text'] ?? ''));
+            }
+        }
+
+        $correctSentence = trim((string) ($correctOption['text'] ?? ''));
+        $correctWords = $this->splitSentenceIntoWords($correctSentence);
+        $distractorTexts = array_values(array_filter($distractorTexts, static fn(string $w): bool => $w !== ''));
+
+        $tokens = array_merge($correctWords, $distractorTexts);
+        shuffle($tokens);
+
+        return [
+            'wordbank' => $tokens,
+            'correct_sentence' => $correctSentence,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function splitSentenceIntoWords(string $sentence): array
+    {
+        $sentence = trim($sentence);
+        if ($sentence === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s+/u', $sentence) ?: [];
+
+        return array_values(array_filter(array_map(static function (string $w): string {
+            return trim($w);
+        }, $parts), static fn(string $w): bool => $w !== ''));
+    }
+
+    /**
+     * Aplica la misma logica de mezcla que la base de datos cuando no hay conexion.
+     *
+     * @param array<string, mixed> $level
+     * @return array<string, mixed>
+     */
+    private function prepareFallbackLevelForPlay(array $level): array
+    {
+        $questions = $level['questions'] ?? [];
+        if (!is_array($questions)) {
+            return $level;
+        }
+
+        $prepared = [];
+        foreach ($questions as $question) {
+            if (!is_array($question)) {
+                continue;
+            }
+
+            $options = $question['options'] ?? [];
+            $options = is_array($options) ? $options : [];
+            $questionType = (int) ($question['tipo_pregunta_id'] ?? 1);
+
+            if ($questionType === 4) {
+                $built = $this->buildTypeFourWordbank($options);
+                $prepared[] = array_merge($question, [
+                    'wordbank' => $built['wordbank'],
+                    'correct_sentence' => $built['correct_sentence'],
+                ]);
+                continue;
+            }
+
+            $shuffled = $options;
+            shuffle($shuffled);
+            $prepared[] = array_merge($question, ['options' => $shuffled]);
+        }
+
+        return array_merge($level, ['questions' => $prepared]);
     }
 }

@@ -35,6 +35,9 @@ $nextLevelRoute = $nextLevelIdValue > 0 ? route_url('nivel/' . (string) $nextLev
                     <h4 class="feedback-item__title"><?= e((string) ($detail['prompt'] ?? 'Pregunta')) ?></h4>
                     <p class="feedback-item__line">Tu respuesta: <?= e((string) (($detail['selected_answer'] ?? '') === '' ? 'Sin responder' : $detail['selected_answer'])) ?></p>
                     <p class="feedback-item__line">Respuesta correcta: <?= e((string) ($detail['expected_answer'] ?? '')) ?></p>
+                    <?php if (!empty($detail['selected_feedback'])): ?>
+                        <p class="feedback-item__feedback"><?= e((string) ($detail['selected_feedback'])) ?></p>
+                    <?php endif; ?>
                     <?php if (empty($detail['is_correct'])): ?>
                         <p class="feedback-item__tip">Tip: <?= e((string) ($detail['tip'] ?? '')) ?></p>
                     <?php endif; ?>
@@ -75,6 +78,17 @@ $nextLevelRoute = $nextLevelIdValue > 0 ? route_url('nivel/' . (string) $nextLev
                 $isActive = $index === 0;
                 $questionTip = (string) ($question['tip'] ?? '');
                 $questionOptions = is_array($question['options'] ?? null) ? $question['options'] : [];
+                $questionType = (int) ($question['tipo_pregunta_id'] ?? 1);
+                $isTextQuestion = $questionType === 3;
+                $isBuildQuestion = $questionType === 4;
+                $questionWordbank = is_array($question['wordbank'] ?? null) ? $question['wordbank'] : [];
+                $correctOptionUi = null;
+                foreach ($questionOptions as $optRow) {
+                    if (!empty($optRow['is_correct'])) {
+                        $correctOptionUi = $optRow;
+                        break;
+                    }
+                }
                 ?>
                 <article
                     class="question-card <?= $isActive ? 'question-card--active' : '' ?>"
@@ -82,27 +96,70 @@ $nextLevelRoute = $nextLevelIdValue > 0 ? route_url('nivel/' . (string) $nextLev
                     data-question-index="<?= e((string) $questionNumber) ?>"
                     data-question-prompt="<?= e((string) ($question['prompt'] ?? '')) ?>"
                     data-question-tip="<?= e($questionTip) ?>"
+                    data-question-type="<?= e((string) $questionType) ?>"
                 >
                     <p class="question-card__counter">Reto <?= e((string) $questionNumber) ?></p>
                     <h3 class="question-card__prompt"><?= e((string) ($question['prompt'] ?? '')) ?></h3>
+                    <?php if ($isTextQuestion): ?>
+                        <p class="question-card__subtitle">Escribe la palabra faltante para completar la oracion.</p>
+                    <?php elseif ($isBuildQuestion): ?>
+                        <p class="question-card__subtitle">Haz clic en las palabras para construir la oracion correcta.</p>
+                    <?php else: ?>
+                        <p class="question-card__subtitle">Selecciona una opcion para continuar.</p>
+                    <?php endif; ?>
 
                     <div class="question-card__body">
-                        <div class="question-card__options">
-                            <?php foreach ($questionOptions as $optionIndex => $option): ?>
-                                <?php $optionInputId = 'q' . (string) ($question['id'] ?? 0) . '_option_' . ($optionIndex + 1); ?>
-                                <label class="question-option" for="<?= e($optionInputId) ?>">
-                                    <input
-                                        class="question-option__input"
-                                        type="radio"
-                                        id="<?= e($optionInputId) ?>"
-                                        name="answers[<?= e((string) ($question['id'] ?? 0)) ?>]"
-                                        value="<?= e((string) ($option['id'] ?? 0)) ?>"
-                                        data-is-correct="<?= !empty($option['is_correct']) ? '1' : '0' ?>"
-                                    >
-                                    <span class="question-option__label"><?= e((string) ($option['text'] ?? '')) ?></span>
-                                </label>
-                            <?php endforeach; ?>
-                        </div>
+                        <?php if ($isTextQuestion): ?>
+                            <div class="question-card__text-input">
+                                <input
+                                    type="text"
+                                    name="answers[<?= e((string) ($question['id'] ?? 0)) ?>]"
+                                    class="question-text-input"
+                                    autocomplete="off"
+                                    placeholder="Escribe tu respuesta aqui..."
+                                    data-correct-text="<?= e((string) ($correctOptionUi['text'] ?? '')) ?>"
+                                    data-option-feedback="<?= e((string) ($correctOptionUi['retroalimentacion'] ?? '')) ?>"
+                                >
+                                <p class="question-text-input__hint">Presiona Enter o haz clic en Siguiente para continuar</p>
+                            </div>
+                        <?php elseif ($isBuildQuestion): ?>
+                            <input
+                                type="hidden"
+                                name="answers[<?= e((string) ($question['id'] ?? 0)) ?>]"
+                                value=""
+                                data-build-answer
+                                data-correct-sentence="<?= e((string) ($question['correct_sentence'] ?? '')) ?>"
+                                data-option-feedback="<?= e((string) ($correctOptionUi['retroalimentacion'] ?? '')) ?>"
+                            >
+                            <div class="question-card__build">
+                                <div class="dropzone-container" data-dropzone>
+                                    <span class="dropzone-placeholder" data-dropzone-placeholder>Aqui aparecera tu oracion...</span>
+                                </div>
+                                <div class="wordbank-container" data-wordbank>
+                                    <?php foreach ($questionWordbank as $word): ?>
+                                        <button type="button" class="word-btn" data-word="<?= e($word) ?>"><?= e($word) ?></button>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="question-card__options">
+                                <?php foreach ($questionOptions as $optionIndex => $option): ?>
+                                    <?php $optionInputId = 'q' . (string) ($question['id'] ?? 0) . '_option_' . ($optionIndex + 1); ?>
+                                    <label class="question-option" for="<?= e($optionInputId) ?>">
+                                        <input
+                                            class="question-option__input"
+                                            type="radio"
+                                            id="<?= e($optionInputId) ?>"
+                                            name="answers[<?= e((string) ($question['id'] ?? 0)) ?>]"
+                                            value="<?= e((string) ($option['id'] ?? 0)) ?>"
+                                            data-is-correct="<?= !empty($option['is_correct']) ? '1' : '0' ?>"
+                                            data-option-feedback="<?= e((string) ($option['retroalimentacion'] ?? '')) ?>"
+                                        >
+                                        <span class="question-option__label"><?= e((string) ($option['text'] ?? '')) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
 
                         <aside class="question-feedback question-feedback--neutral" data-question-feedback aria-live="polite">
                             <div class="question-feedback__avatar" aria-hidden="true">
@@ -110,8 +167,16 @@ $nextLevelRoute = $nextLevelIdValue > 0 ? route_url('nivel/' . (string) $nextLev
                                 <span class="question-feedback__eye question-feedback__eye--right"></span>
                                 <span class="question-feedback__mouth"></span>
                             </div>
-                            <h4 class="question-feedback__title" data-feedback-title>Selecciona una opcion</h4>
-                            <p class="question-feedback__text" data-feedback-text>Te dare pistas utiles sin revelar la respuesta.</p>
+                            <?php if ($isTextQuestion): ?>
+                                <h4 class="question-feedback__title" data-feedback-title>Escribe tu respuesta</h4>
+                                <p class="question-feedback__text" data-feedback-text>Escribe la palabra y presiona Enter o clic en Siguiente.</p>
+                            <?php elseif ($isBuildQuestion): ?>
+                                <h4 class="question-feedback__title" data-feedback-title>Construye la oracion</h4>
+                                <p class="question-feedback__text" data-feedback-text>Haz clic en las palabras para colocarlas en orden.</p>
+                            <?php else: ?>
+                                <h4 class="question-feedback__title" data-feedback-title>Selecciona una opcion</h4>
+                                <p class="question-feedback__text" data-feedback-text>Te dare pistas utiles sin revelar la respuesta.</p>
+                            <?php endif; ?>
                         </aside>
                     </div>
                 </article>

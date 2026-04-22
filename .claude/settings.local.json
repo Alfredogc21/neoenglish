@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root inglescentral -e \"SELECT op.opcion_id, op.pregunta_id, op.texto_opcion, op.es_correcta, LENGTH\\(op.retroalimentacion\\) AS feedback_len FROM opciones_pregunta op INNER JOIN preguntas p ON p.pregunta_id = op.pregunta_id WHERE p.leccion_id = 1 ORDER BY op.pregunta_id, op.opcion_id;\")",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root inglescentral -e \"SELECT COUNT\\(*\\) AS total_preguntas_leccion1 FROM preguntas WHERE leccion_id = 1;\")",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root inglescentral -e ' *)"
+    ]
+  }
+}
